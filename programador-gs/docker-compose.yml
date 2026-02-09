@@ -1,0 +1,30 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: pgs_database
+    restart: always
+    environment:
+      POSTGRES_USER: gustavo_admin
+      POSTGRES_PASSWORD: pgs_password_2026
+      POSTGRES_DB: programador_gs_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  app:
+    build: .
+    container_name: pgs_app
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_USER: gustavo_admin
+      DB_PASSWORD: pgs_password_2026
+      DB_NAME: programador_gs_db
