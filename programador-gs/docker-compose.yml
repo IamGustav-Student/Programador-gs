@@ -1,30 +1,26 @@
-# docker-compose.yml
-version: '3.8'
+
 
 services:
-  db:
-    image: postgres:15
-    container_name: pgs_database
-    restart: always
-    environment:
-      POSTGRES_USER: gustavo_admin
-      POSTGRES_PASSWORD: pgs_password_2026
-      POSTGRES_DB: programador_gs_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-
-  app:
+  payment-service:
     build: .
-    container_name: pgs_app
+    container_name: programador_gs_payments
     restart: always
     ports:
       - "3000:3000"
-    depends_on:
-      - db
     environment:
-      DB_HOST: db
-      DB_USER: gustavo_admin
-      DB_PASSWORD: pgs_password_2026
-      DB_NAME: programador_gs_db
+      # ... (tus variables igual que antes) ...
+      DB_HOST: gymsaas_db 
+      DB_USER: sa
+      DB_PASSWORD: TuPasswordFuerte123!
+      DB_NAME: GymSaaS_Docker
+      PORT: 3000
+      MP_ACCESS_TOKEN: APP_USR-6196437642776289-012911-0fec2a3e1e0553241f33536742f5d0d6-72560819
+    networks:
+      - gym-network
+
+networks:
+  gym-network:
+    external: true
+    # 👇 AGREGA ESTA LÍNEA CON EL NOMBRE REAL QUE VISTE EN EL PASO 1
+    # Si tu carpeta de gymvo se llama 'gymsaas', seguramente sea este:
+    name: gymsaas_gym-network

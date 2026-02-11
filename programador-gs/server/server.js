@@ -1,34 +1,43 @@
-// server/server.js
 const express = require('express');
-const { Pool } = require('pg');
 const cors = require('cors');
+const { getConnection } = require('./db');
 require('dotenv').config();
 
+// Importar Rutas
+const paymentRoutes = require('./routes/payment.routes');
+
 const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middlewares
 app.use(cors());
 app.use(express.json());
-app.use(express.static('client')); // Servir archivos estáticos del frontend
 
-// Configuración de conexión a PostgreSQL
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'gustavo_admin',
-  password: process.env.DB_PASSWORD || 'pgs_password_2026',
-  database: process.env.DB_NAME || 'programador_gs_db',
-  port: 5432,
-});
+// Rutas API
+app.use('/api', paymentRoutes);
 
-// Ruta de prueba de conexión
+// Healthcheck (Estado del sistema)
 app.get('/api/status', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT NOW()');
-    res.json({ status: 'online', time: result.rows[0].now, message: 'Programador GS API lista.' });
-  } catch (err) {
-    res.status(500).json({ status: 'error', error: err.message });
-  }
+    try {
+        const pool = await getConnection();
+        const result = await pool.request().query('SELECT @@VERSION as version');
+        res.json({ 
+            status: 'online', 
+            service: 'Programador GS Payment Gateway',
+            database: 'Connected',
+            db_version: result.recordset[0].version
+        });
+    } catch (err) {
+        console.error("Error en healthcheck:", err);
+        res.status(500).json({ status: 'error', message: 'Database connection failed' });
+    }
 });
 
-const PORT = process.env.PORT || 3000;
+// Iniciar Servidor
 app.listen(PORT, () => {
-  console.log(`Servidor de Programador GS corriendo en puerto ${PORT}`);
+    console.log(`==================================================`);
+    console.log(`🚀 Programador GS Payment Service Activo`);
+    console.log(`🔌 Puerto: ${PORT}`);
+    console.log(`💳 Modo: ${process.env.NODE_ENV || 'Development'}`);
+    console.log(`==================================================`);
 });

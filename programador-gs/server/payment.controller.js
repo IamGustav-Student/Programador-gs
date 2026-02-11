@@ -1,0 +1,197 @@
+const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
+const { getConnection, sql } = require('../db');
+require('dotenv').config();
+
+// Configuración Inicial de Mercado Pago
+const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
+
+// =====================================================================
+// 1. OBTENER INFORMACIÓN DE CHECKOUT (Tenant + Planes)
+// =====================================================================
+const getCheckoutInfo = async (req, res) => {
+    const { tenantId } = req.params;
+
+    try {
+        const pool = await getConnection();
+
+        // A. Validar que el Gym exista en la DB de Gymvo
+        // Seleccionamos campos clave para mostrar en el frontend
+        const tenantQuery = `
+            SELECT Name, Code, Plan, SubscriptionEndsAt, IsActive 
+            FROM Tenants 
+            WHERE Id = @tid
+        `;
+        const tenantResult = await pool.request()
+            .input('tid', sql.NVarChar, tenantId)
+            .query(tenantQuery);
+
+        if (tenantResult.recordset.length === 0) {
+            return res.status(404).json({ error: 'Gimnasio no encontrado o ID inválido.' });
+        }
+
+        // B. Obtener los planes SaaS disponibles (Definidos en Fase 1)
+        const plansQuery = `SELECT * FROM SaaS_Plans ORDER BY Price ASC`;
+        const plansResult = await pool.request().query(plansQuery);
+
+        res.json({
+            tenant: tenantResult.recordset[0],
+            plans: plansResult.recordset
+        });
+
+    } catch (error) {
+        console.error("Error en getCheckoutInfo:", error);
+        res.status(500).json({ error: "Error interno del servidor al obtener datos." });
+    }
+};
+
+// =====================================================================
+// 2. CREAR PREFERENCIA (Link de Pago)
+// =====================================================================
+const createPreference = async (req, res) => {
+    const { tenantId, planEnumId, price, title } = req.body;
+
+    // Validaciones básicas
+    if (!tenantId || !planEnumId || !price) {
+        return res.status(400).json({ error: "Faltan datos obligatorios (tenantId, planEnumId, price)." });
+    }
+
+    try {
+        const preference = new Preference(client);
+
+        // Construimos la preferencia
+        const result = await preference.create({
+            body: {
+                items: [
+                    {
+                        id: String(planEnumId), // ID del plan (1, 2, 3)
+                        title: `Suscripción Gymvo: ${title}`,
+                        quantity: 1,
+                        unit_price: Number(price),
+                        currency_id: 'ARS'
+                    }
+                ],
+                // Metadata crítica para reconciliación
+                external_reference: JSON.stringify({ 
+                    tenantId: tenantId, 
+                    planEnumId: Number(planEnumId) 
+                }),
+                back_urls: {
+                    success: `${process.env.GYMVO_URL || 'http://localhost:5000'}/Portal/SubscriptionSuccess`,
+                    failure: `${process.env.GYMVO_URL || 'http://localhost:5000'}/Portal/SubscriptionFailure`,
+                    pending: `${process.env.GYMVO_URL || 'http://localhost:5000'}/Portal/SubscriptionPending`
+                },
+                auto_return: "approved",
+                // Esta URL debe ser accesible desde internet (ngrok en dev, dominio real en prod)
+                notification_url: `${process.env.PAYMENT_SERVICE_URL}/api/webhook`,
+                statement_descriptor: "GYMVO SAAS"
+            }
+        });
+
+        res.json({ 
+            preferenceId: result.id, 
+            init_point: result.init_point,
+            sandbox_init_point: result.sandbox_init_point 
+        });
+
+    } catch (error) {
+        console.error("Error creando preferencia MP:", error);
+        res.status(500).json({ error: "No se pudo generar el enlace de pago." });
+    }
+};
+
+// =====================================================================
+// 3. WEBHOOK (Activación Automática)
+// =====================================================================
+const handleWebhook = async (req, res) => {
+    // Mercado Pago envía los datos en query params o body según la versión, 
+    // pero para Webhooks tipo 'payment' suele venir en query.
+    const paymentId = req.query['data.id'] || req.query.id;
+    const topic = req.query.topic || req.query.type;
+
+    console.log(`🔔 Webhook recibido: Topic=${topic}, ID=${paymentId}`);
+
+    // Solo nos interesan notificaciones de pagos
+    if (topic === 'payment' && paymentId) {
+        try {
+            // 1. Consultar estado real del pago a la API de MP
+            // (Nunca confiar solo en lo que llega por req, verificar fuente)
+            const paymentClient = new Payment(client);
+            const paymentData = await paymentClient.get({ id: paymentId });
+            
+            // 2. Verificar aprobación
+            if (paymentData.status === 'approved') {
+                const metadata = JSON.parse(paymentData.external_reference);
+                const { tenantId, planEnumId } = metadata;
+                const amount = paymentData.transaction_amount;
+
+                console.log(`✅ PAGO APROBADO | Tenant: ${tenantId} | Plan: ${planEnumId} | Monto: ${amount}`);
+
+                // 3. Transacción en Base de Datos (Atomicidad)
+                const pool = await getConnection();
+                const transaction = new sql.Transaction(pool);
+
+                await transaction.begin();
+
+                try {
+                    // PASO A: Actualizar Tabla Tenants (Core Gymvo)
+                    // Extendemos la suscripción 30 días desde HOY
+                    const updateTenantQuery = `
+                        UPDATE Tenants 
+                        SET 
+                            SubscriptionEndsAt = DATEADD(DAY, 30, GETDATE()),
+                            Status = 1,  -- 1 = Active (Enum SubscriptionStatus)
+                            Plan = @plan, -- Actualizamos el nivel de plan (Enum PlanType)
+                            IsActive = 1
+                        WHERE Id = @tid
+                    `;
+                    
+                    await transaction.request()
+                        .input('tid', sql.NVarChar, tenantId)
+                        .input('plan', sql.Int, planEnumId)
+                        .query(updateTenantQuery);
+
+                    // PASO B: Registrar en Historial SaaS_Payments (Contabilidad)
+                    const insertHistoryQuery = `
+                        INSERT INTO SaaS_Payments 
+                        (TenantId, Amount, PlanName, MercadoPagoReference, Status, PaymentDate)
+                        VALUES 
+                        (@tid, @amount, 'Plan ID ' + CAST(@plan AS NVARCHAR), @ref, 'Approved', GETDATE())
+                    `;
+
+                    await transaction.request()
+                        .input('tid', sql.NVarChar, tenantId)
+                        .input('plan', sql.Int, planEnumId)
+                        .input('amount', sql.Decimal(18, 2), amount)
+                        .input('ref', sql.NVarChar, String(paymentId))
+                        .query(insertHistoryQuery);
+
+                    // Confirmar cambios
+                    await transaction.commit();
+                    console.log("💾 Base de datos Gymvo actualizada exitosamente.");
+
+                } catch (dbError) {
+                    await transaction.rollback();
+                    console.error("❌ Error en Transacción DB:", dbError);
+                    // No devolvemos 500 para que MP no reintente infinitamente si es error lógico,
+                    // pero en producción deberíamos loguear esto en una tabla de errores.
+                }
+            } else {
+                console.log(`⚠️ Pago recibido pero no aprobado. Estado: ${paymentData.status}`);
+            }
+
+        } catch (error) {
+            console.error("❌ Error procesando Webhook:", error);
+            // Si fallamos aquí, MP reintentará enviar el webhook más tarde
+            return res.sendStatus(500);
+        }
+    }
+
+    // Responder a Mercado Pago que recibimos la notificación (siempre 200 OK si llegó)
+    res.sendStatus(200);
+};
+
+module.exports = {
+    getCheckoutInfo,
+    createPreference,
+    handleWebhook
+};

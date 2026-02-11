@@ -1,0 +1,242 @@
+/* 1. CONFIGURACIÓN Y VARIABLES - Estilo Laboratorio */
+:root {
+    --bg-dark: #050505;          /* Fondo casi negro */
+    --bg-card: #0d0d0d;          /* Fondo de tarjetas */
+    --accent-blue: #007BFF;      /* Azul Eléctrico Programador GS */
+    --accent-cyan: #00f2ff;      /* Cyan para detalles de QA */
+    --text-main: #ffffff;
+    --text-dim: #a0a0a0;
+    --border-color: #1a1a1a;
+    --font-main: 'Inter', sans-serif;
+    --font-code: 'JetBrains Mono', monospace;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-main);
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+/* 2. NAVEGACIÓN - Minimalista */
+.nav-pgs {
+    height: 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 5%;
+    border-bottom: 1px solid var(--border-color);
+    backdrop-filter: blur(10px);
+    position: fixed;
+    width: 100%;
+    top: 0;
+    z-index: 100;
+}
+
+.logo {
+    font-family: var(--font-code);
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: -1px;
+}
+
+.logo span {
+    color: var(--accent-blue);
+}
+
+/* 3. HERO SECTION - Impacto Visual */
+#hero {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 0 20px;
+    background: radial-gradient(circle at center, #001a33 0%, #050505 70%);
+}
+
+#hero h1 {
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    line-height: 1.1;
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+#hero h1 span {
+    color: var(--accent-blue);
+    text-shadow: 0 0 20px rgba(0, 123, 255, 0.4);
+}
+
+#hero p {
+    color: var(--text-dim);
+    max-width: 600px;
+    margin-bottom: 40px;
+    font-size: 1.1rem;
+}
+
+/* 4. BOTONES - Estilo ZENDEV Evolucionado */
+.cta-group {
+    display: flex;
+    gap: 20px;
+}
+
+.btn-primary {
+    background-color: var(--accent-blue);
+    color: white;
+    padding: 15px 35px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(0, 123, 255, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba(0, 123, 255, 0.5);
+}
+
+.btn-outline {
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 15px 35px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-outline:hover {
+    background: white;
+    color: black;
+}
+
+/* 5. UTILIDADES Y ANIMACIÓN */
+.bg-dark { background-color: var(--bg-dark); }
+.text-light { color: var(--text-main); }
+
+@media (max-width: 768px) {
+    .cta-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    #hero h1 {
+        font-size: 3rem;
+    }
+}
+
+/* 6. SECCIÓN PRECIOS / GYMVO */
+.section-padding {
+    padding: 100px 5%;
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: 60px;
+}
+
+.badge {
+    background: rgba(0, 123, 255, 0.1);
+    color: var(--accent-blue);
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.pricing-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    padding: 40px;
+    border-radius: 15px;
+    transition: transform 0.3s ease, border-color 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.pricing-card:hover {
+    transform: translateY(-10px);
+    border-color: var(--accent-blue);
+}
+
+.pricing-card.featured {
+    border: 2px solid var(--accent-blue);
+    box-shadow: 0 0 30px rgba(0, 123, 255, 0.1);
+}
+
+.popular-tag {
+    background: var(--accent-blue);
+    color: white;
+    position: absolute;
+    top: 20px;
+    right: -35px;
+    transform: rotate(45deg);
+    padding: 5px 40px;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.pricing-card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+}
+
+.price {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 30px;
+}
+
+.price span {
+    font-size: 1rem;
+    color: var(--text-dim);
+}
+
+.pricing-card ul {
+    list-style: none;
+    margin-bottom: 40px;
+}
+
+.pricing-card ul li {
+    margin-bottom: 15px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-plan {
+    display: block;
+    text-align: center;
+    padding: 15px;
+    border: 1px solid var(--accent-blue);
+    color: var(--text-main);
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: 700;
+    transition: all 0.3s ease;
+}
+
+.pricing-card.featured .btn-plan,
+.btn-plan:hover {
+    background: var(--accent-blue);
+    color: white;
+}
