@@ -13,5 +13,7 @@ router.post('/create-preference', paymentController.createPreference);
 
 // Webhook para Mercado Pago (Notificaciones IPN)
 router.post('/webhook', paymentController.handleWebhook);
+// Nueva ruta para verificación de estado desde el cliente
+router.get('/payment-status/:tenantId', paymentController.verifyPaymentStatus);
 
 module.exports = router;

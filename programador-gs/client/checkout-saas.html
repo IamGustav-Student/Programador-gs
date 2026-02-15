@@ -3,57 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checkout | Programador GS</title>
+    <title>Pasarela | Programador GS</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://sdk.mercadopago.com/js/v2"></script>
 </head>
 <body class="cyber-bg">
     <div class="checkout-container">
-        <header class="checkout-header">
-            <h1 class="glitch-text">Programador GS</h1>
-            <p>Payment Gateway v1.0</p>
-        </header>
+        <div class="glow-box">
+            <header class="checkout-header">
+                <h1 class="glitch-text" data-text="PROGRAMADOR GS">PROGRAMADOR GS</h1>
+                <p class="subtitle">Secure SaaS Payment Gateway</p>
+            </header>
 
-        <main class="checkout-card">
-            <div id="loading" class="spinner">Cargando credenciales...</div>
-            
-            <div id="checkout-details" style="display: none;">
-                <h2 id="plan-name">Plan Seleccionado</h2>
-                <div class="divider"></div>
-                <div class="detail-row">
-                    <span>Gimnasio:</span>
-                    <span id="gym-name" class="highlight">--</span>
-                </div>
-                <div class="detail-row">
-                    <span>Monto a pagar:</span>
-                    <span id="plan-price" class="price">--</span>
+            <main class="checkout-card">
+                <div id="status-area">
+                    <div id="loading" class="cyber-loader">
+                        <div class="scanner"></div>
+                        <p>VERIFICANDO CREDENCIALES...</p>
+                    </div>
                 </div>
                 
-                <div id="wallet_container" class="mp-button-container"></div>
-            </div>
-        </main>
+                <div id="checkout-details" style="display: none;">
+                    <div class="plan-badge" id="plan-name">PLAN</div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>CLIENTE</label>
+                            <span id="gym-name">--</span>
+                        </div>
+                        <div class="info-item">
+                            <label>TOTAL</label>
+                            <span id="plan-price" class="neon-text">--</span>
+                        </div>
+                    </div>
+                    
+                    <div id="wallet_container" class="mp-wallet"></div>
+                </div>
+            </main>
+        </div>
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const tenantId = urlParams.get('tenantId');
         const planId = urlParams.get('planId');
-        const mp = new MercadoPago('TU_PUBLIC_KEY_MAESTRA'); // Se reemplaza en Prod
+        const mp = new MercadoPago('TU_PUBLIC_KEY'); 
 
-        async function initCheckout() {
+        async function init() {
             try {
-                // 1. Obtener info del plan y gimnasio
                 const response = await fetch(`/api/checkout/saas?tenantId=${tenantId}&planId=${planId}`);
                 const data = await response.json();
 
-                if (data.error) throw new Error(data.error);
-
                 document.getElementById('gym-name').innerText = data.tenant.Name;
-                document.getElementById('plan-name').innerText = data.plan.Name;
-                document.getElementById('plan-price').innerText = `$${data.plan.Price}`;
+                document.getElementById('plan-name').innerText = data.plan.Name.toUpperCase();
+                document.getElementById('plan-price').innerText = `$${data.plan.Price} ARS`;
                 
-                // 2. Crear preferencia
-                const prefResponse = await fetch('/api/create-preference', {
+                const prefRes = await fetch('/api/create-preference', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -65,23 +69,21 @@
                     })
                 });
 
-                const prefData = await prefResponse.json();
+                const prefData = await prefRes.json();
 
-                // 3. Renderizar botón
                 mp.bricks().create("wallet", "wallet_container", {
                     initialization: { preferenceId: prefData.preferenceId },
                     customization: { texts: { valueProp: 'smart_option' } }
                 });
 
-                document.getElementById('loading').style.display = 'none';
+                document.getElementById('status-area').style.display = 'none';
                 document.getElementById('checkout-details').style.display = 'block';
 
             } catch (err) {
-                alert("Error al iniciar checkout: " + err.message);
+                document.getElementById('status-area').innerHTML = `<p class="error-text">ERROR: ${err.message}</p>`;
             }
         }
-
-        initCheckout();
+        init();
     </script>
 </body>
 </html>
