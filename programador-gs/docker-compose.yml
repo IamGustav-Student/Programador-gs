@@ -6,21 +6,20 @@ services:
     container_name: programador_gs_payments
     restart: always
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
-      # ... (tus variables igual que antes) ...
+      # Conexión al SQL Server (Ahora visible gracias a gymvo-connect)
       DB_HOST: gymsaas_db 
       DB_USER: sa
-      DB_PASSWORD: TuPasswordFuerte123!
+      DB_PASSWORD: TuPasswordFuerte123! # Asegúrate que coincida con .env de GymSaaS
       DB_NAME: GymSaaS_Docker
       PORT: 3000
       MP_ACCESS_TOKEN: APP_USR-6196437642776289-012911-0fec2a3e1e0553241f33536742f5d0d6-72560819
     networks:
       - gym-network
 
+# AQUÍ EL MISMO CAMBIO:
 networks:
   gym-network:
+    name: gymvo-connect
     external: true
-    # 👇 AGREGA ESTA LÍNEA CON EL NOMBRE REAL QUE VISTE EN EL PASO 1
-    # Si tu carpeta de gymvo se llama 'gymsaas', seguramente sea este:
-    name: gymsaas_gym-network

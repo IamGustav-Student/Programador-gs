@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout | Programador GS</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+</head>
+<body class="cyber-bg">
+    <div class="checkout-container">
+        <header class="checkout-header">
+            <h1 class="glitch-text">Programador GS</h1>
+            <p>Payment Gateway v1.0</p>
+        </header>
+
+        <main class="checkout-card">
+            <div id="loading" class="spinner">Cargando credenciales...</div>
+            
+            <div id="checkout-details" style="display: none;">
+                <h2 id="plan-name">Plan Seleccionado</h2>
+                <div class="divider"></div>
+                <div class="detail-row">
+                    <span>Gimnasio:</span>
+                    <span id="gym-name" class="highlight">--</span>
+                </div>
+                <div class="detail-row">
+                    <span>Monto a pagar:</span>
+                    <span id="plan-price" class="price">--</span>
+                </div>
+                
+                <div id="wallet_container" class="mp-button-container"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const tenantId = urlParams.get('tenantId');
+        const planId = urlParams.get('planId');
+        const mp = new MercadoPago('TU_PUBLIC_KEY_MAESTRA'); // Se reemplaza en Prod
+
+        async function initCheckout() {
+            try {
+                // 1. Obtener info del plan y gimnasio
+                const response = await fetch(`/api/checkout/saas?tenantId=${tenantId}&planId=${planId}`);
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+
+                document.getElementById('gym-name').innerText = data.tenant.Name;
+                document.getElementById('plan-name').innerText = data.plan.Name;
+                document.getElementById('plan-price').innerText = `$${data.plan.Price}`;
+                
+                // 2. Crear preferencia
+                const prefResponse = await fetch('/api/create-preference', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tenantId: tenantId,
+                        planEnumId: planId,
+                        price: data.plan.Price,
+                        title: data.plan.Name,
+                        emailGimnasio: data.tenant.Email
+                    })
+                });
+
+                const prefData = await prefResponse.json();
+
+                // 3. Renderizar botón
+                mp.bricks().create("wallet", "wallet_container", {
+                    initialization: { preferenceId: prefData.preferenceId },
+                    customization: { texts: { valueProp: 'smart_option' } }
+                });
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('checkout-details').style.display = 'block';
+
+            } catch (err) {
+                alert("Error al iniciar checkout: " + err.message);
+            }
+        }
+
+        initCheckout();
+    </script>
+</body>
+</html>

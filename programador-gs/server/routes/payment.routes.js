@@ -1,22 +1,17 @@
-const { Router } = require('express');
-const { 
-    getCheckoutInfo, 
-    createPreference, 
-    handleWebhook 
-} = require('../controllers/payment.controller');
+const express = require('express');
+const router = express.Router();
+const paymentController = require('../controllers/payment.controller');
 
-const router = Router();
+// Obtener info básica para el frontend
+router.get('/checkout-info/:tenantId', paymentController.getCheckoutInfo);
 
-// 1. Obtener datos del Gym y los Planes disponibles
-// GET /api/checkout-info/GUID-DEL-TENANT
-router.get('/checkout-info/:tenantId', getCheckoutInfo);
+// Endpoint de entrada desde GymSaaS para iniciar flujo SaaS
+router.get('/checkout/saas', paymentController.renderSaaSPricing);
 
-// 2. Crear la preferencia de pago en Mercado Pago
-// POST /api/create-preference
-router.post('/create-preference', createPreference);
+// Crear preferencia de pago
+router.post('/create-preference', paymentController.createPreference);
 
-// 3. Webhook para recibir notificación de Mercado Pago
-// POST /api/webhook
-router.post('/webhook', handleWebhook);
+// Webhook para Mercado Pago (Notificaciones IPN)
+router.post('/webhook', paymentController.handleWebhook);
 
 module.exports = router;
